@@ -1,0 +1,38 @@
+# .github/workflows/daily_fetch.yml
+# Jalankan fetch_ratings.py setiap hari jam 00:00 UTC (07:00 WIB)
+
+name: Daily Movie Fetch
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Setiap hari jam 00:00 UTC
+  workflow_dispatch:      # Bisa dijalankan manual dari GitHub UI
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Clone repository
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # 2. Setup Python
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 3. Install dependencies
+      - name: Install dependencies
+        run: |
+          pip install supabase python-dotenv requests
+
+      # 4. Jalankan fetch script
+      - name: Fetch movie ratings
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        run: |
+          python scripts/fetch_ratings.py
