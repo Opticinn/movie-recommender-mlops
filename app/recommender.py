@@ -120,7 +120,7 @@ def main():
     st.divider()
 
     # ── Recommend button ───────────────────────────────────
-    if st.button("🚀 Find Recommendations!", type="primary"):
+    if st.button("Find Recommendations!", type="primary"):
 
         with st.spinner("Finding similar movies..."):
             start = time.time()
