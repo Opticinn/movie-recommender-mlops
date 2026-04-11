@@ -2,7 +2,11 @@
 # Wrapper untuk semua operasi database Supabase
 
 import os
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 from supabase import create_client, Client
 
 # Load .env sekali saat module ini diimport

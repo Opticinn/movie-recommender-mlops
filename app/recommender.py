@@ -7,7 +7,7 @@ import streamlit as st
 import pandas as pd
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from app.utils.db_client import get_client, insert_prediction_log
+from utils.db_client import get_client, insert_prediction_log
 
 # ── 1. Konfigurasi halaman ─────────────────────────────────
 st.set_page_config(
