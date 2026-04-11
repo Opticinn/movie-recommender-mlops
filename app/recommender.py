@@ -1,43 +1,40 @@
 # app/recommender.py
-# Streamlit app untuk sistem rekomendasi film
+# Streamlit app for movie recommendation system
 
 import sys
 import os
+import time
 import streamlit as st
 import pandas as pd
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.db_client import get_client, insert_prediction_log
 
-# ── 1. Konfigurasi halaman ─────────────────────────────────
+# ── 1. Page configuration ──────────────────────────────────
 st.set_page_config(
     page_title="Movie Recommender",
     page_icon="🎬",
     layout="wide"
 )
 
-# ── 2. Load data film dari Supabase ───────────────────────
-@st.cache_data(ttl=3600)  # Cache 1 jam — tidak perlu fetch ulang tiap interaksi
+# ── 2. Load movie data from Supabase ──────────────────────
+@st.cache_data(ttl=3600)
 def load_movies() -> pd.DataFrame:
-    """
-    Ambil semua film dari cache_ratings dan return sebagai DataFrame.
-    """
     try:
         client = get_client()
         response = client.table("cache_ratings").select("*").execute()
-        df = pd.DataFrame(response.data)
-        return df
+        return pd.DataFrame(response.data)
     except Exception as e:
-        st.error(f"❌ Gagal load data film: {e}")
+        st.error(f"❌ Failed to load movie data: {e}")
         return pd.DataFrame()
-    
-    
-# ── 3. Fungsi hitung similarity berbasis genre ─────────────
+
+
+# ── 3. Genre similarity function ──────────────────────────
 def genre_similarity(genres_a: list, genres_b: list) -> float:
     """
-    Hitung seberapa mirip dua film berdasarkan genre.
-    Menggunakan Jaccard Similarity: irisan / gabungan
-    Return nilai 0.0 (tidak mirip) sampai 1.0 (identik)
+    Measure similarity between two movies based on genre.
+    Uses Jaccard Similarity: intersection / union
+    Returns 0.0 (no match) to 1.0 (identical)
     """
     if not genres_a or not genres_b:
         return 0.0
@@ -45,8 +42,8 @@ def genre_similarity(genres_a: list, genres_b: list) -> float:
     set_a = set(genres_a)
     set_b = set(genres_b)
 
-    intersection = set_a & set_b  # genre yang sama
-    union = set_a | set_b         # semua genre gabungan
+    intersection = set_a & set_b
+    union = set_a | set_b
 
     return len(intersection) / len(union)
 
@@ -57,24 +54,18 @@ def get_recommendations(
     top_n: int = 10
 ) -> pd.DataFrame:
     """
-    Cari film paling mirip dengan input_movie.
-    Return DataFrame berisi top_n rekomendasi.
+    Find the most similar movies to the input movie.
+    Returns a DataFrame of top_n recommendations.
     """
     input_genres = input_movie["genre_names"]
 
-    # Hitung similarity semua film terhadap input
     df = df.copy()
     df["similarity"] = df["genre_names"].apply(
         lambda genres: genre_similarity(input_genres, genres)
     )
 
-    # Exclude film input sendiri
     df = df[df["movie_id"] != input_movie["movie_id"]]
-
-    # Filter hanya yang ada kemiripan genre
     df = df[df["similarity"] > 0]
-
-    # Sort: similarity dulu, lalu rating sebagai tiebreaker
     df = df.sort_values(
         by=["similarity", "rating"],
         ascending=[False, False]
@@ -82,77 +73,25 @@ def get_recommendations(
 
     return df.head(top_n)
 
-
-# ── 3. Fungsi hitung similarity berbasis genre ─────────────
-def genre_similarity(genres_a: list, genres_b: list) -> float:
-    """
-    Hitung seberapa mirip dua film berdasarkan genre.
-    Menggunakan Jaccard Similarity: irisan / gabungan
-    Return nilai 0.0 (tidak mirip) sampai 1.0 (identik)
-    """
-    if not genres_a or not genres_b:
-        return 0.0
-
-    set_a = set(genres_a)
-    set_b = set(genres_b)
-
-    intersection = set_a & set_b  # genre yang sama
-    union = set_a | set_b         # semua genre gabungan
-
-    return len(intersection) / len(union)
-
-
-def get_recommendations(
-    input_movie: pd.Series,
-    df: pd.DataFrame,
-    top_n: int = 10
-) -> pd.DataFrame:
-    """
-    Cari film paling mirip dengan input_movie.
-    Return DataFrame berisi top_n rekomendasi.
-    """
-    input_genres = input_movie["genre_names"]
-
-    # Hitung similarity semua film terhadap input
-    df = df.copy()
-    df["similarity"] = df["genre_names"].apply(
-        lambda genres: genre_similarity(input_genres, genres)
-    )
-
-    # Exclude film input sendiri
-    df = df[df["movie_id"] != input_movie["movie_id"]]
-
-    # Filter hanya yang ada kemiripan genre
-    df = df[df["similarity"] > 0]
-
-    # Sort: similarity dulu, lalu rating sebagai tiebreaker
-    df = df.sort_values(
-        by=["similarity", "rating"],
-        ascending=[False, False]
-    )
-
-    return df.head(top_n)
 
 # ── 4. Main UI ─────────────────────────────────────────────
 def main():
     st.title("🎬 Movie Recommender")
-    st.caption("Temukan film yang mirip dengan favoritmu!")
+    st.caption("Discover movies similar to your favorites!")
 
-    # Load data
     df = load_movies()
     if df.empty:
-        st.error("Tidak ada data film. Jalankan fetch_ratings.py terlebih dahulu.")
+        st.error("No movie data found. Please run fetch_ratings.py first.")
         return
 
-    st.sidebar.header("🔍 Cari Film")
+    st.sidebar.header("🔍 Search Movie")
 
     # ── Search box ─────────────────────────────────────────
     search_query = st.sidebar.text_input(
-        "Ketik judul film:",
-        placeholder="contoh: Inception"
+        "Type a movie title:",
+        placeholder="e.g. Inception"
     )
 
-    # Filter film berdasarkan search query
     if search_query:
         filtered_df = df[
             df["title"].str.contains(search_query, case=False, na=False)
@@ -161,53 +100,49 @@ def main():
         filtered_df = df
 
     if filtered_df.empty:
-        st.sidebar.warning("Film tidak ditemukan. Coba kata lain.")
+        st.sidebar.warning("No movies found. Try a different keyword.")
         return
 
-    # ── Selectbox dari hasil filter ────────────────────────
+    # ── Selectbox ──────────────────────────────────────────
     movie_titles = filtered_df["title"].tolist()
-    selected_title = st.sidebar.selectbox("Pilih film:", movie_titles)
+    selected_title = st.sidebar.selectbox("Select a movie:", movie_titles)
 
-    # Ambil data film yang dipilih
     input_movie = filtered_df[filtered_df["title"] == selected_title].iloc[0]
 
-    # ── Info film yang dipilih ─────────────────────────────
-    st.subheader("🎯 Film yang kamu pilih:")
+    # ── Selected movie info ────────────────────────────────
+    st.subheader("🎯 Your selected movie:")
     col1, col2, col3 = st.columns(3)
-    col1.metric("Judul", input_movie["title"])
+    col1.metric("Title", input_movie["title"])
     col2.metric("Rating", f"{input_movie['rating']}/10")
-    col3.metric("Tahun", input_movie["release_year"] or "N/A")
+    col3.metric("Year", input_movie["release_year"] or "N/A")
     st.caption(f"Genre: {', '.join(input_movie['genre_names'] or [])}")
 
     st.divider()
 
-    # ── Tombol rekomendasi ─────────────────────────────────
-    if st.button("🚀 Cari Rekomendasi!", type="primary"):
+    # ── Recommend button ───────────────────────────────────
+    if st.button("🚀 Find Recommendations!", type="primary"):
 
-        with st.spinner("Mencari film yang mirip..."):
-            import time
+        with st.spinner("Finding similar movies..."):
             start = time.time()
-
             recommendations = get_recommendations(input_movie, df)
-
             latency_ms = int((time.time() - start) * 1000)
 
         if recommendations.empty:
-            st.warning("Tidak ada rekomendasi ditemukan.")
+            st.warning("No recommendations found.")
             return
 
-        # ── Tampilkan rekomendasi ──────────────────────────
-        st.subheader(f"🎬 10 Film Rekomendasi untuk '{selected_title}':")
+        # ── Display recommendations ────────────────────────
+        st.subheader(f"🎬 Top 10 Recommendations for '{selected_title}':")
 
         for i, (_, movie) in enumerate(recommendations.iterrows(), 1):
             with st.expander(f"{i}. {movie['title']} ⭐ {movie['rating']}"):
                 c1, c2, c3 = st.columns(3)
-                c1.write(f"**Tahun:** {movie['release_year'] or 'N/A'}")
+                c1.write(f"**Year:** {movie['release_year'] or 'N/A'}")
                 c2.write(f"**Rating:** {movie['rating']}/10")
                 c3.write(f"**Similarity:** {movie['similarity']:.0%}")
                 st.write(f"**Genre:** {', '.join(movie['genre_names'] or [])}")
 
-        # ── Log ke database ────────────────────────────────
+        # ── Log to database ────────────────────────────────
         insert_prediction_log(
             session_id=st.session_state.get("session_id", "streamlit-session"),
             input_movie_id=int(input_movie["movie_id"]),
