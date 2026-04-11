@@ -9,7 +9,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils.db_client import get_client, insert_prediction_log
+from utils.db_client import get_client, get_baseline_metrics, insert_prediction_log
 
 # ── 1. Konfigurasi halaman ─────────────────────────────────
 st.set_page_config(
