@@ -168,7 +168,7 @@ def main():
 
     # ── Sidebar: filter waktu ──────────────────────────────
     st.sidebar.header("⚙️ Settings")
-    days = st.sidebar.slider("Rentang waktu (hari):", 1, 30, 7)
+    days = st.sidebar.slider("Time range (days):", 1, 30, 7)
     st.sidebar.divider()
 
     # ── Load data ──────────────────────────────────────────
