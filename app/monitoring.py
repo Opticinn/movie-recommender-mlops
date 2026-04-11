@@ -73,10 +73,10 @@ def detect_rating_drift(
 
     if drift >= threshold:
         severity = "red"
-        status = f"🔴 DRIFT TERDETEKSI"
+        status = f"🔴 DRIFT DETECTED"
     elif drift >= threshold * 0.7:  # 70% dari threshold = warning
         severity = "yellow"
-        status = f"🟡 MENDEKATI THRESHOLD"
+        status = f"🟡 APPROACHING THRESHOLD"
     else:
         severity = "green"
         status = f"🟢 NORMAL"
@@ -247,12 +247,12 @@ def main():
     st.divider()
 
     # ── Section 3: Charts ──────────────────────────────────
-    st.subheader("📊 Distribusi Data")
+    st.subheader("📊 Data Distribution")
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("**Distribusi Rating Film**")
+        st.markdown("**Movie Rating Distribution**")
         if not df_ratings.empty:
             hist_data = df_ratings["rating"].value_counts().sort_index()
             st.bar_chart(hist_data)
