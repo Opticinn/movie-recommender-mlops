@@ -8,6 +8,7 @@ try:
 except ImportError:
     pass
 from supabase import create_client, Client
+import requests as req
 
 # Load .env sekali saat module ini diimport
 load_dotenv()
@@ -128,4 +129,33 @@ def get_baseline_metrics() -> dict:
         print(f"❌ Gagal mengambil baseline metrics: {e}")
         return {}
     
+# ── Telegram Alert ─────────────────────────────────────────
+def send_telegram_alert(message: str) -> bool:
+    """
+    Kirim notifikasi ke Telegram ketika drift terdeteksi.
+    Return True jika berhasil, False jika gagal.
+    """
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID")
+
+    if not token or not chat_id:
+        print("⚠️ Telegram credentials not found, skipping alert.")
+        return False
+
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": message,
+        "parse_mode": "Markdown"  # support bold, italic, code
+    }
+
+    try:
+        response = req.post(url, json=payload, timeout=10)
+        response.raise_for_status()
+        print("✅ Telegram alert sent!")
+        return True
+    except Exception as e:
+        print(f"❌ Failed to send Telegram alert: {e}")
+        return False
     
+

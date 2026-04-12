@@ -9,7 +9,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from utils.db_client import get_client, get_baseline_metrics, insert_prediction_log
+from utils.db_client import get_client, get_baseline_metrics, insert_prediction_log, send_telegram_alert
 
 # ── 1. Konfigurasi halaman ─────────────────────────────────
 st.set_page_config(
@@ -161,6 +161,40 @@ def detect_genre_drift(
         "overlap_pct": f"{overlap_pct:.0%}"
     }
     
+def check_and_alert(drift_type: str, result: dict) -> None:
+    """
+    Kirim Telegram alert kalau drift severity = red.
+    Hanya alert sekali per deteksi — tidak spam.
+    """
+    if result.get("severity") != "red":
+        return
+
+    messages = {
+        "rating": (
+            f"🚨 *RATING DRIFT DETECTED!*\n\n"
+            f"Baseline: `{result.get('baseline_mean')}`\n"
+            f"Current:  `{result.get('current_mean')}`\n"
+            f"Drift:    `{result.get('drift')}` (threshold: {result.get('threshold')})\n\n"
+            f"_Movie Recommender MLOps_"
+        ),
+        "latency": (
+            f"🚨 *LATENCY DRIFT DETECTED!*\n\n"
+            f"Current:   `{result.get('current_mean_ms')} ms`\n"
+            f"Threshold: `{result.get('threshold_ms')} ms`\n\n"
+            f"_Movie Recommender MLOps_"
+        ),
+        "genre": (
+            f"🚨 *GENRE DRIFT DETECTED!*\n\n"
+            f"Baseline: `{', '.join(result.get('baseline_top_genres', []))}`\n"
+            f"Current:  `{', '.join(result.get('current_top_genres', []))}`\n"
+            f"Overlap:  `{result.get('overlap_pct')}`\n\n"
+            f"_Movie Recommender MLOps_"
+        )
+    }
+
+    message = messages.get(drift_type, "🚨 Drift detected!")
+    send_telegram_alert(message)
+    
 # ── 4. Main Dashboard ──────────────────────────────────────
 def main():
     st.title("📊 MLOps Monitoring Dashboard")
@@ -219,8 +253,7 @@ def main():
             st.write(f"Baseline: `{result['baseline_mean']}`")
             st.write(f"Current:  `{result['current_mean']}`")
             st.write(f"Drift:    `{result['drift']}` (threshold: {result['threshold']})")
-        else:
-            st.warning("Tidak ada data rating")
+            check_and_alert("rating", result)  # ← tambahkan ini
 
     # Latency drift
     with col2:
@@ -231,8 +264,7 @@ def main():
             if result["severity"] != "grey":
                 st.write(f"Current:   `{result['current_mean_ms']} ms`")
                 st.write(f"Threshold: `{result['threshold_ms']} ms`")
-        else:
-            st.info("⚪ Belum ada prediction logs")
+            check_and_alert("latency", result)  # ← tambahkan ini
 
     # Genre drift
     with col3:
@@ -243,6 +275,7 @@ def main():
             st.write(f"Baseline: `{', '.join(result['baseline_top_genres'])}`")
             st.write(f"Current:  `{', '.join(result['current_top_genres'])}`")
             st.write(f"Overlap:  `{result['overlap_pct']}`")
+            check_and_alert("genre", result)  # ← tambahkan ini
 
     st.divider()
 
