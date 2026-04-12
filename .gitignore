@@ -1,3 +1,9 @@
+## modelnya
+model/*.pkl
+
+## datanya!
+data/
+
 ## Password database supabase
 password-db-supabase
 

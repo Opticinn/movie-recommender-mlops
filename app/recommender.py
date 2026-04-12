@@ -6,6 +6,7 @@ import os
 import time
 import streamlit as st
 import pandas as pd
+from utils.model_loader import get_svd_model, get_sbert_embeddings, get_hybrid_recommendations
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils.db_client import get_client, insert_prediction_log
@@ -16,6 +17,17 @@ st.set_page_config(
     page_icon="🎬",
     layout="wide"
 )
+
+@st.cache_resource  # cache model — tidak reload setiap interaksi
+def load_models():
+    """
+    Load SVD dan SBERT model.
+    Pakai cache_resource karena model adalah object besar.
+    """
+    svd = get_svd_model()
+    movie_ids = []  # embeddings sudah ada di disk, tidak perlu movie_ids
+    embeddings_dict, _ = get_sbert_embeddings(movie_ids)
+    return svd, embeddings_dict
 
 # ── 2. Load movie data from Supabase ──────────────────────
 @st.cache_data(ttl=3600)
@@ -93,6 +105,10 @@ def main():
     if df.empty:
         st.error("No movie data found. Please run fetch_ratings.py first.")
         return
+    
+    # Load hybrid model
+    with st.spinner("⚡ Loading recommendation models..."):
+        svd, embeddings_dict = load_models()
 
     st.sidebar.header("🔍 Search Movie")
 
@@ -143,50 +159,72 @@ def main():
 
     # ── Recommend button ───────────────────────────────────
     if st.button("🚀 Find Recommendations!", type="primary"):
+            with st.spinner("Finding similar movies..."):
+                start = time.time()
 
-        with st.spinner("Finding similar movies..."):
-            start = time.time()
-            recommendations = get_recommendations(input_movie, df)
-            latency_ms = int((time.time() - start) * 1000)
+                # Cek apakah hybrid model tersedia
+                if svd and embeddings_dict:
+                    recommendations = get_hybrid_recommendations(
+                        input_movie_id=int(input_movie["movie_id"]),
+                        candidate_movies=df,
+                        svd_model=svd,
+                        embeddings_dict=embeddings_dict,
+                        top_n=10
+                    )
+                    model_used = "hybrid (SVD + SBERT)"
+                else:
+                    # Fallback ke content-based kalau model tidak tersedia
+                    recommendations = get_recommendations(input_movie, df)
+                    model_used = "content-based (genre)"
 
-        if recommendations.empty:
-            st.warning("No recommendations found.")
-            return
+                latency_ms = int((time.time() - start) * 1000)
 
-        # ── Display recommendations ────────────────────────
-        st.subheader(f"🎬 Top 10 Recommendations for '{selected_title}':")
+            if recommendations.empty:
+                st.warning("No recommendations found.")
+                return
 
-        for i, (_, movie) in enumerate(recommendations.iterrows(), 1):
-            with st.expander(f"{i}. {movie['title']} ⭐ {movie['rating']}"):
-                col_poster, col_detail = st.columns([1, 3])
+            st.caption(f"🤖 Model: `{model_used}`")
 
-                with col_poster:
-                    poster_url = get_poster_url(movie.get("poster_path"))
-                    if poster_url:
-                        st.image(poster_url, width=120)
-                    else:
-                        st.caption("No poster")
+            # ── Display recommendations ────────────────────────
+            st.subheader(f"🎬 Top 10 Recommendations for '{selected_title}':")
 
-                with col_detail:
-                    c1, c2, c3 = st.columns(3)
-                    c1.write(f"**Year:** {movie['release_year'] or 'N/A'}")
-                    c2.write(f"**Rating:** {movie['rating']}/10")
-                    c3.write(f"**Similarity:** {movie['similarity']:.0%}")
-                    st.write(f"**Genre:** {', '.join(movie['genre_names'] or [])}")
+            for i, (_, movie) in enumerate(recommendations.iterrows(), 1):
+                with st.expander(f"{i}. {movie['title']} ⭐ {movie['rating']}"):
+                    col_poster, col_detail = st.columns([1, 3])
 
-        # ── Log to database ────────────────────────────────
-        insert_prediction_log(
-            session_id=st.session_state.get("session_id", "streamlit-session"),
-            input_movie_id=int(input_movie["movie_id"]),
-            input_movie_title=input_movie["title"],
-            input_movie_genres=input_movie["genre_names"],
-            recommended_movies=recommendations["title"].tolist(),
-            recommended_genres=recommendations["genre_names"].tolist(),
-            latency_ms=latency_ms,
-            api_source="tmdb"
-        )
+                    with col_poster:
+                        poster_url = get_poster_url(movie.get("poster_path"))
+                        if poster_url:
+                            st.image(poster_url, width=120)
+                        else:
+                            st.caption("No poster")
 
-        st.caption(f"⚡ Latency: {latency_ms}ms")
+                    with col_detail:
+                        c1, c2, c3, c4 = st.columns(4)
+                        c1.write(f"**Year:** {movie['release_year'] or 'N/A'}")
+                        c2.write(f"**Rating:** {movie['rating']}/10")
+                        # Tampilkan score hybrid kalau tersedia
+                        if "hybrid_score" in movie:
+                            c3.write(f"**Hybrid Score:** {movie['hybrid_score']:.2f}")
+                            c4.write(f"**SBERT Sim:** {movie['content_score']:.2f}")
+                        else:
+                            c3.write(f"**Similarity:** {movie['similarity']:.0%}")
+                        st.write(f"**Genre:** {', '.join(movie['genre_names'] or [])}")
+
+            # ── Log to database ────────────────────────────────
+            insert_prediction_log(
+                session_id=st.session_state.get("session_id", "streamlit-session"),
+                input_movie_id=int(input_movie["movie_id"]),
+                input_movie_title=input_movie["title"],
+                input_movie_genres=input_movie["genre_names"],
+                recommended_movies=recommendations["title"].tolist(),
+                recommended_genres=recommendations["genre_names"].tolist(),
+                latency_ms=latency_ms,
+                api_source="tmdb",
+                model_version="v2.0-hybrid"
+            )
+
+            st.caption(f"⚡ Latency: {latency_ms}ms")
 
 
 if __name__ == "__main__":
