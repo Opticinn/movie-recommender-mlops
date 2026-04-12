@@ -76,6 +76,7 @@ def upsert_cache_rating(
     release_year: int,
     genre_ids: list = None,
     genre_names: list = None,
+    poster_path: str = None, 
 ) -> bool:
     """
     Menyimpan data film ke cache_ratings.
@@ -92,6 +93,7 @@ def upsert_cache_rating(
             "release_year": release_year,
             "genre_ids": genre_ids or [],
             "genre_names": genre_names or [],
+            "poster_path": poster_path
         }
 
         client.table("cache_ratings").upsert(

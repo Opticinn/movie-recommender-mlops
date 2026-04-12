@@ -83,7 +83,8 @@ def parse_movie(movie: dict) -> dict | None:
         "vote_count": movie.get("vote_count", 0),
         "release_year": release_year,
         "genre_ids": genre_ids,
-        "genre_names": genre_names
+        "genre_names": genre_names,
+        "poster_path": movie.get("poster_path")
     }
     
 def fetch_and_store():

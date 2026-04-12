@@ -73,6 +73,16 @@ def get_recommendations(
 
     return df.head(top_n)
 
+TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500"
+
+def get_poster_url(poster_path: str) -> str | None:
+    """
+    Konversi poster_path → URL lengkap.
+    Return None kalau poster tidak tersedia.
+    """
+    if poster_path and str(poster_path) != "None":
+        return f"{TMDB_IMAGE_BASE}{poster_path}"
+    return None
 
 # ── 4. Main UI ─────────────────────────────────────────────
 def main():
@@ -111,16 +121,28 @@ def main():
 
     # ── Selected movie info ────────────────────────────────
     st.subheader("🎯 Your selected movie:")
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Title", input_movie["title"])
-    col2.metric("Rating", f"{input_movie['rating']}/10")
-    col3.metric("Year", input_movie["release_year"] or "N/A")
-    st.caption(f"Genre: {', '.join(input_movie['genre_names'] or [])}")
+
+    poster_url = get_poster_url(input_movie.get("poster_path"))
+
+    col_poster, col_info = st.columns([1, 3])
+
+    with col_poster:
+        if poster_url:
+            st.image(poster_url, width=150)
+        else:
+            st.caption("No poster available")
+
+    with col_info:
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Title", input_movie["title"])
+        col2.metric("Rating", f"{input_movie['rating']}/10")
+        col3.metric("Year", input_movie["release_year"] or "N/A")
+        st.caption(f"Genre: {', '.join(input_movie['genre_names'] or [])}")
 
     st.divider()
 
     # ── Recommend button ───────────────────────────────────
-    if st.button("Find Recommendations!", type="primary"):
+    if st.button("🚀 Find Recommendations!", type="primary"):
 
         with st.spinner("Finding similar movies..."):
             start = time.time()
@@ -136,11 +158,21 @@ def main():
 
         for i, (_, movie) in enumerate(recommendations.iterrows(), 1):
             with st.expander(f"{i}. {movie['title']} ⭐ {movie['rating']}"):
-                c1, c2, c3 = st.columns(3)
-                c1.write(f"**Year:** {movie['release_year'] or 'N/A'}")
-                c2.write(f"**Rating:** {movie['rating']}/10")
-                c3.write(f"**Similarity:** {movie['similarity']:.0%}")
-                st.write(f"**Genre:** {', '.join(movie['genre_names'] or [])}")
+                col_poster, col_detail = st.columns([1, 3])
+
+                with col_poster:
+                    poster_url = get_poster_url(movie.get("poster_path"))
+                    if poster_url:
+                        st.image(poster_url, width=120)
+                    else:
+                        st.caption("No poster")
+
+                with col_detail:
+                    c1, c2, c3 = st.columns(3)
+                    c1.write(f"**Year:** {movie['release_year'] or 'N/A'}")
+                    c2.write(f"**Rating:** {movie['rating']}/10")
+                    c3.write(f"**Similarity:** {movie['similarity']:.0%}")
+                    st.write(f"**Genre:** {', '.join(movie['genre_names'] or [])}")
 
         # ── Log to database ────────────────────────────────
         insert_prediction_log(
