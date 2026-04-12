@@ -164,9 +164,14 @@ def detect_genre_drift(
 def check_and_alert(drift_type: str, result: dict) -> None:
     """
     Kirim Telegram alert kalau drift severity = red.
-    Hanya alert sekali per deteksi — tidak spam.
+    Throttled — hanya alert sekali per sesi per drift type.
     """
     if result.get("severity") != "red":
+        return
+
+    # Cek apakah alert untuk drift type ini sudah dikirim di sesi ini
+    alert_key = f"alert_sent_{drift_type}"
+    if st.session_state.get(alert_key):
         return
 
     messages = {
@@ -193,7 +198,11 @@ def check_and_alert(drift_type: str, result: dict) -> None:
     }
 
     message = messages.get(drift_type, "🚨 Drift detected!")
-    send_telegram_alert(message)
+    ok = send_telegram_alert(message)
+
+    if ok:
+        # Tandai bahwa alert sudah dikirim di sesi ini
+        st.session_state[alert_key] = True
     
 # ── 4. Main Dashboard ──────────────────────────────────────
 def main():
