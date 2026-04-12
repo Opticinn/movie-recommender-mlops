@@ -175,27 +175,27 @@ def check_and_alert(drift_type: str, result: dict) -> None:
         return
 
     messages = {
-        "rating": (
-            f"🚨 *RATING DRIFT DETECTED!*\n\n"
-            f"Baseline: `{result.get('baseline_mean')}`\n"
-            f"Current:  `{result.get('current_mean')}`\n"
-            f"Drift:    `{result.get('drift')}` (threshold: {result.get('threshold')})\n\n"
-            f"_Movie Recommender MLOps_"
-        ),
-        "latency": (
-            f"🚨 *LATENCY DRIFT DETECTED!*\n\n"
-            f"Current:   `{result.get('current_mean_ms')} ms`\n"
-            f"Threshold: `{result.get('threshold_ms')} ms`\n\n"
-            f"_Movie Recommender MLOps_"
-        ),
-        "genre": (
-            f"🚨 *GENRE DRIFT DETECTED!*\n\n"
-            f"Baseline: `{', '.join(result.get('baseline_top_genres', []))}`\n"
-            f"Current:  `{', '.join(result.get('current_top_genres', []))}`\n"
-            f"Overlap:  `{result.get('overlap_pct')}`\n\n"
-            f"_Movie Recommender MLOps_"
-        )
-    }
+    "rating": (
+        f"🚨 <b>RATING DRIFT DETECTED!</b>\n\n"
+        f"Baseline: <code>{result.get('baseline_mean')}</code>\n"
+        f"Current:  <code>{result.get('current_mean')}</code>\n"
+        f"Drift:    <code>{result.get('drift')}</code> (threshold: {result.get('threshold')})\n\n"
+        f"<i>Movie Recommender MLOps</i>"
+    ),
+    "latency": (
+        f"🚨 <b>LATENCY DRIFT DETECTED!</b>\n\n"
+        f"Current:   <code>{result.get('current_mean_ms')} ms</code>\n"
+        f"Threshold: <code>{result.get('threshold_ms')} ms</code>\n\n"
+        f"<i>Movie Recommender MLOps</i>"
+    ),
+    "genre": (
+        f"🚨 <b>GENRE DRIFT DETECTED!</b>\n\n"
+        f"Baseline: <code>{', '.join(result.get('baseline_top_genres', []))}</code>\n"
+        f"Current:  <code>{', '.join(result.get('current_top_genres', []))}</code>\n"
+        f"Overlap:  <code>{result.get('overlap_pct')}</code>\n\n"
+        f"<i>Movie Recommender MLOps</i>"
+    )
+}
 
     message = messages.get(drift_type, "🚨 Drift detected!")
     ok = send_telegram_alert(message)

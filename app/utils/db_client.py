@@ -146,7 +146,7 @@ def send_telegram_alert(message: str) -> bool:
     payload = {
         "chat_id": chat_id,
         "text": message,
-        "parse_mode": "Markdown"  # support bold, italic, code
+        "parse_mode": "HTML"  # support bold, italic, code
     }
 
     try:
