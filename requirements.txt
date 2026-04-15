@@ -1,10 +1,10 @@
-numpy==1.26.4
+numpy==1.23.5
 scikit-surprise==1.1.4
 pandas==2.0.3
-torch==2.2.0
-sentence-transformers==2.3.0
-huggingface_hub>=0.21.0
-streamlit>=1.31.0
-supabase>=2.0.0
+torch==2.1.0
+sentence-transformers==2.2.2
+huggingface_hub>=0.20.0
+streamlit>=1.30.0
+supabase>=2.3.0
 python-dotenv>=1.0.0
 requests>=2.31.0
