@@ -6,3 +6,4 @@ pandas
 scikit-surprise
 sentence-transformers
 torch
+huggingface_hub
