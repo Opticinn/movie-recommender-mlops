@@ -12,7 +12,7 @@ from surprise.model_selection import cross_validate
 # ── Paths ────────────────────────────────────────────────────────────────────
 BASE_DIR = Path(__file__).parent
 MODEL_DIR = BASE_DIR / "model"
-SVD_MODEL_PATH = MODEL_DIR / "svd_model.pkl"
+SVD_MODEL_PATH = MODEL_DIR / "svd_model_light.pkl" 
 EMBEDDINGS_PATH = MODEL_DIR / "sbert_embeddings.pkl"
 DATA_PATH = BASE_DIR / "data" / "ratings.csv"
 
@@ -32,6 +32,17 @@ def save_model(obj, path: Path):
 def load_model(path: Path):
     with open(path, "rb") as f:
         return pickle.load(f)
+    
+def predict_svd_light(model_data: dict, uid: int, iid: int) -> float:
+    """Prediksi rating menggunakan model ringan (tanpa trainset)"""
+    inner_u = model_data['raw2inner_uid'].get(uid)
+    inner_i = model_data['raw2inner_iid'].get(iid)
+    est = model_data['global_mean']
+    if inner_u is not None: est += model_data['bu'][inner_u]
+    if inner_i is not None: est += model_data['bi'][inner_i]
+    if inner_u is not None and inner_i is not None:
+        est += float(np.dot(model_data['pu'][inner_u], model_data['qi'][inner_i]))
+    return est
 
 
 # ── Data ─────────────────────────────────────────────────────────────────────
@@ -49,8 +60,8 @@ def train_svd(ratings):
     return svd
 
 
-def get_svd_model(force_retrain: bool = False) -> SVD:
-    """Load SVD model: cache → HF Hub → train (fallback)."""
+def get_svd_model(force_retrain: bool = False) -> dict:
+    """Load SVD model (lightweight dict): cache → HF Hub → train (fallback)."""
     if SVD_MODEL_PATH.exists() and not force_retrain:
         print("⚡ Loading SVD model from cache...")
         return load_model(SVD_MODEL_PATH)
@@ -60,7 +71,7 @@ def get_svd_model(force_retrain: bool = False) -> SVD:
         print("📥 Downloading SVD model from HuggingFace Hub...")
         downloaded_path = hf_hub_download(
             repo_id=HF_REPO_ID,
-            filename="svd_model.pkl",
+            filename="svd_model_light.pkl",
             local_dir=MODEL_DIR,
             token=os.getenv("HF_TOKEN"),
         )
@@ -132,7 +143,7 @@ def get_hybrid_recommendations(
 
     for idx, movie_id in enumerate(movie_ids):
         # SVD score
-        svd_score = svd_model.predict(user_id, movie_id).est
+        svd_score = predict_svd_light(svd_model, user_id, movie_id)
 
         # SBERT similarity (average similarity to all other movies)
         emb = embeddings[idx]
