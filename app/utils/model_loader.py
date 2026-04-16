@@ -104,7 +104,7 @@ def get_hybrid_recommendations(
     svd_model: dict,
     embeddings_dict: dict,
     top_n: int = 10,
-    alpha: float = 0.2, 
+    alpha: float = 0.4, 
 ) -> pd.DataFrame:
     
     # 1. Pastikan film input ada di data SBERT
