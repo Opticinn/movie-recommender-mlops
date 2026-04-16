@@ -104,37 +104,66 @@ def get_hybrid_recommendations(
     svd_model: dict,
     embeddings_dict: dict,
     top_n: int = 10,
-    alpha: float = 0.6,
+    alpha: float = 0.5, # Kita buat 50:50 agar lebih seimbang
 ) -> pd.DataFrame:
-    # 1. Ambil embedding film input
+    
+    # 1. Pastikan film input ada di data SBERT
     if input_movie_id not in embeddings_dict:
         return pd.DataFrame()
-    
     input_vector = embeddings_dict[input_movie_id]
-    user_id = 1 # Default user
     
+    # 2. Ambil data Latent Vector Item (qi) dari SVD
+    qi_data = svd_model.get('qi', {})
+    
+    # Fungsi bantu yang aman untuk mengambil vector film (support Dict & Numpy)
+    def safe_get_qi(item_id):
+        if isinstance(qi_data, dict):
+            return qi_data.get(item_id)
+        if isinstance(qi_data, (np.ndarray, list)):
+            try:
+                return qi_data[int(item_id)]
+            except (IndexError, ValueError, TypeError):
+                return None
+        return None
+
+    # Ambil pola rating dari film input
+    qi_input = safe_get_qi(input_movie_id)
+
     results = []
-    # 2. Lakukan iterasi
     for _, row in candidate_movies.iterrows():
         m_id = int(row['movie_id'])
         
-        # Mencegah merekomendasikan film yang sama dengan input
+        # Jangan rekomendasikan film yang sedang dicari
         if m_id == input_movie_id:
             continue
-        
-        # Collaborative Score (SVD)
-        svd_score = predict_svd_light(svd_model, user_id, m_id) / 5.0
-        
-        # Content Score (Similarity)
-        if m_id in embeddings_dict:
-            sim = cosine_similarity(input_vector, embeddings_dict[m_id])
-            content_score = (sim + 1) / 2 # Normalize ke 0-1
-        else:
-            content_score = 0.5
             
+        # --- 3. Hitung Content Score (Kemiripan Sinopsis via SBERT) ---
+        if m_id in embeddings_dict:
+            sim_content = cosine_similarity(input_vector, embeddings_dict[m_id])
+            content_score = (sim_content + 1) / 2 # Normalize dari [-1, 1] ke [0, 1]
+        else:
+            content_score = 0.0
+            
+        # --- 4. Hitung Collaborative Score (Kemiripan Pola Rating via SVD) ---
+        qi_candidate = safe_get_qi(m_id)
+        
+        if qi_input is not None and qi_candidate is not None:
+            # Hitung cosine similarity antar Latent Vector film
+            norm_input = np.linalg.norm(qi_input)
+            norm_cand = np.linalg.norm(qi_candidate)
+            
+            if norm_input > 0 and norm_cand > 0:
+                sim_collab = np.dot(qi_input, qi_candidate) / (norm_input * norm_cand)
+                svd_score = (sim_collab + 1) / 2 # Normalize
+            else:
+                svd_score = 0.0
+        else:
+            svd_score = 0.0 # Jika film tidak dikenali SVD, beri nilai 0
+            
+        # --- 5. Gabungkan menjadi Hybrid Score ---
         hybrid_score = (alpha * svd_score) + ((1 - alpha) * content_score)
         
-        # SANGAT PENTING: Salin semua data film asli (termasuk rating, poster_path, dll)
+        # Salin semua data film dan tambahkan skor
         movie_data = row.to_dict()
         movie_data.update({
             "hybrid_score": hybrid_score,
@@ -143,5 +172,5 @@ def get_hybrid_recommendations(
         })
         results.append(movie_data)
         
-    # 3. Urutkan dan kembalikan
+    # Urutkan berdasarkan nilai hybrid tertinggi
     return pd.DataFrame(results).sort_values("hybrid_score", ascending=False).head(top_n)
