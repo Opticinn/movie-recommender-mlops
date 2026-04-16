@@ -132,11 +132,17 @@ def get_baseline_metrics() -> dict:
         return {}
     
 # ── Telegram Alert ─────────────────────────────────────────
+# ── Telegram Alert ─────────────────────────────────────────
 def send_telegram_alert(message: str) -> bool:
     """
     Kirim notifikasi ke Telegram ketika drift terdeteksi.
     Return True jika berhasil, False jika gagal.
     """
+    # 🛑 TAMBAHKAN BLOK INI: Jangan kirim pesan kalau sedang jalan di CI/CD
+    if os.getenv("GITHUB_ACTIONS") == "true":
+        print("🛑 Skipping Telegram alert (Running in GitHub Actions CI/CD).")
+        return True
+
     token = os.getenv("TELEGRAM_BOT_TOKEN")
     chat_id = os.getenv("TELEGRAM_CHAT_ID")
 
