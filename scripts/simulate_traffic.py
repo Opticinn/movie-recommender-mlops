@@ -1,130 +1,72 @@
-# scripts/simulate_traffic.py
-# Generate dummy prediction logs untuk testing drift detection.
-# Jalankan sekali untuk populate tabel prediction_logs.
-
-import sys
 import os
-import random
+import sys
 import time
-from datetime import datetime, timedelta
+import random
+import pandas as pd
 
+# Menambahkan root directory ke sys.path agar bisa import dari folder 'app'
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from app.utils.db_client import get_client, insert_prediction_log
 
-# ── Konfigurasi simulasi ───────────────────────────────────
-TOTAL_SESSIONS  = 50    # Jumlah sesi user yang disimulasikan
-REQUESTS_PER_SESSION = 3  # Rata-rata request per sesi
-DELAY_BETWEEN_LOGS = 0.1  # Jeda antar insert (detik)
+# Sesuaikan import ini dengan nama fungsi yang ada di model_loader kamu
+# Asumsi: kamu punya fungsi get_hybrid_recommendations dan fungsi load model
+from app.utils.model_loader import get_hybrid_recommendations
 
-# Variasi latency yang realistis (dalam ms)
-LATENCY_NORMAL  = (50, 300)    # Range latency normal
-LATENCY_SLOW    = (1500, 3000) # Range latency tinggi (simulasi drift)
-SLOW_PROBABILITY = 0.1         # 10% chance latency tinggi
-
-# Variasi api_source
-API_SOURCES = ["tmdb", "tmdb", "tmdb", "omdb", "fallback"]
-# tmdb lebih sering muncul — realistis
-
-
-# ── Load film dari database ────────────────────────────────
-def load_movies_from_db() -> list:
-    """
-    Ambil semua film dari cache_ratings sebagai list of dict.
-    """
-    try:
-        client = get_client()
-        response = client.table("cache_ratings").select(
-            "movie_id, title, genre_names"
-        ).execute()
-
-        movies = response.data
-        print(f"✅ Loaded {len(movies)} movies from database")
-        return movies
-
-    except Exception as e:
-        print(f"❌ Failed to load movies: {e}")
-        return []
-
-
-# ── Generate satu sesi simulasi ────────────────────────────
-def simulate_session(movies: list, session_id: str) -> int:
-    """
-    Simulasikan satu sesi user — beberapa request rekomendasi.
-    Return jumlah request yang berhasil di-log.
-    """
-    success_count = 0
-    num_requests = random.randint(1, REQUESTS_PER_SESSION * 2)
-
-    for _ in range(num_requests):
-        # Pilih film input secara acak
-        input_movie = random.choice(movies)
-
-        # Pilih 10 film rekomendasi acak (exclude input)
-        other_movies = [m for m in movies if m["movie_id"] != input_movie["movie_id"]]
-        recommended = random.sample(other_movies, min(10, len(other_movies)))
-
-        # Generate latency yang realistis
-        if random.random() < SLOW_PROBABILITY:
-            latency_ms = random.randint(*LATENCY_SLOW)   # simulasi lambat
-        else:
-            latency_ms = random.randint(*LATENCY_NORMAL) # normal
-
-        # Kumpulkan genre rekomendasi
-        recommended_genres = []
-        for movie in recommended:
-            recommended_genres.extend(movie.get("genre_names") or [])
-
-        # Insert log
-        ok = insert_prediction_log(
-            session_id=session_id,
-            input_movie_id=input_movie["movie_id"],
-            input_movie_title=input_movie["title"],
-            input_movie_genres=input_movie.get("genre_names") or [],
-            recommended_movies=[m["title"] for m in recommended],
-            recommended_genres=list(set(recommended_genres)),
-            latency_ms=latency_ms,
-            api_source=random.choice(API_SOURCES),
-            user_type="dummy"
-        )
-
-        if ok:
-            success_count += 1
-
-        time.sleep(DELAY_BETWEEN_LOGS)
-
-    return success_count
-
-
-# ── Loop utama ─────────────────────────────────────────────
 def run_simulation():
-    print("🤖 Starting traffic simulation...\n")
-
-    # Load data film
-    movies = load_movies_from_db()
-    if not movies:
-        print("❌ No movies found. Run fetch_ratings.py first.")
+    print("🤖 Memulai Bot Simulasi Traffic...")
+    
+    # 1. Load Data
+    client = get_client()
+    print("📥 Mengambil data film dari database...")
+    response = client.table("cache_ratings").select("*").execute()
+    movies_df = pd.DataFrame(response.data)
+    
+    if movies_df.empty:
+        print("❌ Data film kosong. Batalkan simulasi.")
         return
 
-    total_success = 0
-    total_requests = 0
+    # 2. Lakukan 20 pencarian acak per sesi
+    TOTAL_REQUESTS = 20
+    
+    for i in range(TOTAL_REQUESTS):
+        try:
+            # Pilih film acak seolah-olah user sedang mencari
+            random_movie = movies_df.sample(1).iloc[0]
+            start_time = time.time()
 
-    for i in range(1, TOTAL_SESSIONS + 1):
-        # Generate session ID unik per sesi
-        session_id = f"dummy-session-{i:03d}-{random.randint(1000, 9999)}"
+            # Panggil fungsi rekomendasi (Sistem akan otomatis mendownload/meload model jika belum ada)
+            # Pastikan parameter ini sesuai dengan fungsi get_hybrid_recommendations milikmu
+            recommendations = get_hybrid_recommendations(
+                input_movie_id=int(random_movie["movie_id"]),
+                candidate_movies=movies_df
+            )
 
-        print(f"👤 Session {i}/{TOTAL_SESSIONS} → {session_id}")
+            # Hitung Latency
+            latency = int((time.time() - start_time) * 1000)
 
-        success = simulate_session(movies, session_id)
-        total_success += success
-        total_requests += success
+            # Insert ke log Supabase (menggunakan model_version V2)
+            insert_prediction_log(
+                session_id="bot_github_action",
+                user_type="bot",
+                input_movie_id=int(random_movie["movie_id"]),
+                input_movie_title=random_movie["title"],
+                input_movie_genres=random_movie["genre_names"],
+                recommended_movies=recommendations["title"].tolist() if not recommendations.empty else [],
+                latency_ms=latency,
+                model_version="v2.0-hybrid"
+            )
 
-    # ── Laporan akhir ──────────────────────────────────────
-    print(f"\n{'='*40}")
-    print(f"✅ Total logs inserted : {total_success}")
-    print(f"👤 Total sessions      : {TOTAL_SESSIONS}")
-    print(f"{'='*40}")
-    print("🎉 Simulation complete!")
+            print(f"[{i+1}/{TOTAL_REQUESTS}] ✅ Bot mencari: {random_movie['title']} ({latency}ms)")
+            
+            # Jeda 2 detik agar tidak di-block oleh API Supabase
+            time.sleep(2)
 
+        except Exception as e:
+            print(f"❌ Error pada simulasi ke-{i+1}: {e}")
+            time.sleep(2)
+
+    print("🎉 Sesi simulasi selesai. Bot tidur kembali.")
 
 if __name__ == "__main__":
     run_simulation()
