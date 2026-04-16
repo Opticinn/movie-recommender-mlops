@@ -13,7 +13,7 @@ from surprise.model_selection import cross_validate
 BASE_DIR = Path(__file__).parent
 MODEL_DIR = BASE_DIR / "model"
 SVD_MODEL_PATH = MODEL_DIR / "svd_model_light.pkl" 
-EMBEDDINGS_PATH = MODEL_DIR / "sbert_embeddings.pkl"
+EMBEDDINGS_PATH = MODEL_DIR / "sbert_embeddings.npy"
 DATA_PATH = BASE_DIR / "data" / "ratings.csv"
 
 # HuggingFace Hub config
@@ -29,9 +29,8 @@ def save_model(obj, path: Path):
     print(f"💾 Saved: {path.name}")
 
 
-def load_model(path: Path):
-    with open(path, "rb") as f:
-        return pickle.load(f)
+def load_model(path: Path) -> np.ndarray:
+    return np.load(path, allow_pickle=False)
     
 def predict_svd_light(model_data: dict, uid: int, iid: int) -> float:
     """Prediksi rating menggunakan model ringan (tanpa trainset)"""
@@ -92,30 +91,24 @@ def compute_embeddings(movies_df: pd.DataFrame):
     embeddings = sbert.encode(titles, show_progress_bar=True)
     return embeddings
 
-
-def get_sbert_embeddings(force_recompute: bool = False):
-    """Load SBERT embeddings: cache → HF Hub → recompute (fallback)."""
+# ── SBERT Embeddings ─────────────────────────────────────────────────────────
+def get_sbert_embeddings(force_recompute: bool = False) -> np.ndarray:
     if EMBEDDINGS_PATH.exists() and not force_recompute:
         print("⚡ Loading embeddings from cache...")
-        return load_model(EMBEDDINGS_PATH)
+        return load_model(EMBEDDINGS_PATH)  # ✅ PAKAI np.load
 
-    # Download dari HF Hub
     try:
         print("📥 Downloading SBERT embeddings from HuggingFace Hub...")
         downloaded_path = hf_hub_download(
             repo_id=HF_REPO_ID,
-            filename="sbert_embeddings.pkl",
+            filename="sbert_embeddings.npy",  # ✅ Pastikan nama file .npy
             local_dir=MODEL_DIR,
             token=os.getenv("HF_TOKEN"),
         )
         print("✅ SBERT embeddings downloaded!")
-        return load_model(Path(downloaded_path))
-
+        return load_model(Path(downloaded_path))  # ✅ PAKAI np.load
     except Exception as e:
-        raise RuntimeError(
-            f"❌ Gagal download SBERT embeddings dari HF Hub: {e}\n"
-            "Pastikan HF_TOKEN sudah di-set di Streamlit Secrets."
-        )
+        raise RuntimeError(f"❌ Gagal download SBERT embeddings: {e}")
 
 
 # ── Cosine Similarity ─────────────────────────────────────────────────────────
@@ -129,7 +122,7 @@ def cosine_similarity(vec_a: np.ndarray, vec_b: np.ndarray) -> float:
 def get_hybrid_recommendations(
     user_id: int,
     movies_df: pd.DataFrame,
-    svd_model: SVD,
+    svd_model: dict,
     embeddings: np.ndarray,
     top_n: int = 10,
     alpha: float = 0.6,
