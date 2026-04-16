@@ -54,23 +54,42 @@ def get_sbert_embeddings():
     return embeddings, movie_ids
 
 def predict_svd_light(model_data: dict, uid: int, iid: int) -> float:
-    """Prediksi rating menggunakan model ringan dengan pengecekan kunci yang aman"""
+    """Prediksi rating menggunakan model ringan (support Dict & Numpy Array)"""
     
-    # Coba cari kunci mean, mu, atau global_mean (tergantung hasil save pkl kamu)
+    # 1. Ambil mean
     mean = model_data.get('mean', model_data.get('mu', model_data.get('global_mean', 0)))
     
-    # Ambil bias user & item (default 0 jika tidak ada)
-    bu = model_data.get('bu', {}).get(uid, 0)
-    bi = model_data.get('bi', {}).get(iid, 0)
-    
-    # Ambil faktor latent (default array nol jika tidak ada)
+    # Fungsi pembantu untuk mengambil data dengan aman (anti-crash)
+    def safe_get(data, key, default):
+        if data is None:
+            return default
+        if isinstance(data, dict):
+            return data.get(key, default)
+        if isinstance(data, (np.ndarray, list)):
+            try:
+                # Jika key berupa int, coba jadikan index array
+                return data[int(key)]
+            except (IndexError, ValueError, TypeError):
+                return default
+        return default
+
+    # 2. Ekstrak struktur data
+    bu_data = model_data.get('bu', {})
+    bi_data = model_data.get('bi', {})
+    pu_data = model_data.get('pu', {})
+    qi_data = model_data.get('qi', {})
     factor_size = model_data.get('factor_size', 100)
-    pu = model_data.get('pu', {}).get(uid, np.zeros(factor_size))
-    qi = model_data.get('qi', {}).get(iid, np.zeros(factor_size))
     
-    # Hitung dot product (pu * qi) + mean + bias
+    # 3. Ambil nilai spesifik untuk user & item (atau gunakan default)
+    bu = safe_get(bu_data, uid, 0.0)
+    bi = safe_get(bi_data, iid, 0.0)
+    pu = safe_get(pu_data, uid, np.zeros(factor_size))
+    qi = safe_get(qi_data, iid, np.zeros(factor_size))
+    
+    # 4. Hitung estimasi (dot product (pu * qi) + mean + bias)
     est = mean + bu + bi + np.dot(pu, qi)
     
+    # 5. Batasi nilai rating antara 0.5 sampai 5.0
     return float(np.clip(est, 0.5, 5.0))
 
 def get_hybrid_recommendations(
