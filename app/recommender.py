@@ -163,7 +163,7 @@ def main():
                 start = time.time()
 
                 # Cek apakah hybrid model tersedia
-                if svd and embeddings_dict:
+                if svd and embeddings:
                     recommendations = get_hybrid_recommendations(
                         input_movie_id=int(input_movie["movie_id"]),
                         candidate_movies=df,
