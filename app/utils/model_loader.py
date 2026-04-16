@@ -114,8 +114,13 @@ def get_hybrid_recommendations(
     user_id = 1 # Default user
     
     results = []
+    # 2. Lakukan iterasi
     for _, row in candidate_movies.iterrows():
         m_id = int(row['movie_id'])
+        
+        # Mencegah merekomendasikan film yang sama dengan input
+        if m_id == input_movie_id:
+            continue
         
         # Collaborative Score (SVD)
         svd_score = predict_svd_light(svd_model, user_id, m_id) / 5.0
@@ -129,11 +134,14 @@ def get_hybrid_recommendations(
             
         hybrid_score = (alpha * svd_score) + ((1 - alpha) * content_score)
         
-        results.append({
-            "title": row['title'],
+        # SANGAT PENTING: Salin semua data film asli (termasuk rating, poster_path, dll)
+        movie_data = row.to_dict()
+        movie_data.update({
             "hybrid_score": hybrid_score,
             "svd_score": svd_score,
             "content_score": content_score
         })
+        results.append(movie_data)
         
+    # 3. Urutkan dan kembalikan
     return pd.DataFrame(results).sort_values("hybrid_score", ascending=False).head(top_n)
