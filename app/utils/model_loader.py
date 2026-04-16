@@ -68,11 +68,10 @@ def get_svd_model(force_retrain: bool = False) -> SVD:
         return load_model(Path(downloaded_path))
 
     except Exception as e:
-        print(f"⚠️ Download failed: {e}. Training new model...")
-        ratings = load_movielens()
-        svd = train_svd(ratings)
-        save_model(svd, SVD_MODEL_PATH)
-        return svd
+        raise RuntimeError(
+            f"❌ Gagal download SVD model dari HF Hub: {e}\n"
+            "Pastikan HF_TOKEN sudah di-set di Streamlit Secrets."
+    )
 
 
 # ── SBERT Embeddings ─────────────────────────────────────────────────────────
@@ -102,11 +101,10 @@ def get_sbert_embeddings(force_recompute: bool = False):
         return load_model(Path(downloaded_path))
 
     except Exception as e:
-        print(f"⚠️ Download failed: {e}. Recomputing embeddings...")
-        movies_df = pd.read_csv(BASE_DIR / "data" / "movies.csv")
-        embeddings = compute_embeddings(movies_df)
-        save_model(embeddings, EMBEDDINGS_PATH)
-        return embeddings
+        raise RuntimeError(
+            f"❌ Gagal download SBERT embeddings dari HF Hub: {e}\n"
+            "Pastikan HF_TOKEN sudah di-set di Streamlit Secrets."
+        )
 
 
 # ── Cosine Similarity ─────────────────────────────────────────────────────────
