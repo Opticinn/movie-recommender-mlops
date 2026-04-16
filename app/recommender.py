@@ -108,7 +108,7 @@ def main():
     
     # Load hybrid model
     with st.spinner("⚡ Loading recommendation models..."):
-        svd, embeddings = load_models()
+        svd, embeddings, movie_ids = load_models()
 
     st.sidebar.header("🔍 Search Movie")
 
@@ -164,11 +164,12 @@ def main():
 
                 # Cek apakah hybrid model tersedia
                 if svd and embeddings:
+                    embeddings_dict = dict(zip(movie_ids.tolist(), embeddings))
                     recommendations = get_hybrid_recommendations(
                         input_movie_id=int(input_movie["movie_id"]),
                         candidate_movies=df,
                         svd_model=svd,
-                        embeddings_dict=embeddings,
+                        embeddings_dict=embeddings_dict,
                         top_n=10
                     )
                     model_used = "hybrid (SVD + SBERT)"
