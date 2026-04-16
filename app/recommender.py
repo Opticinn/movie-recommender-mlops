@@ -26,8 +26,8 @@ def load_models():
     """
     svd = get_svd_model()
     # movie_ids = []  # embeddings sudah ada di disk, tidak perlu movie_ids
-    embeddings_dict, _ = get_sbert_embeddings(movie_ids)
-    return svd, embeddings_dict
+    embeddings = get_sbert_embeddings()
+    return svd, embeddings
 
 # ── 2. Load movie data from Supabase ──────────────────────
 @st.cache_data(ttl=3600)
