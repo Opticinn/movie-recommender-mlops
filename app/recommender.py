@@ -25,7 +25,7 @@ def load_models():
     Pakai cache_resource karena model adalah object besar.
     """
     svd = get_svd_model()
-    movie_ids = []  # embeddings sudah ada di disk, tidak perlu movie_ids
+    # movie_ids = []  # embeddings sudah ada di disk, tidak perlu movie_ids
     embeddings_dict, _ = get_sbert_embeddings(movie_ids)
     return svd, embeddings_dict
 
@@ -108,7 +108,7 @@ def main():
     
     # Load hybrid model
     with st.spinner("⚡ Loading recommendation models..."):
-        svd, embeddings_dict = load_models()
+        svd, embeddings = load_models()
 
     st.sidebar.header("🔍 Search Movie")
 
@@ -163,12 +163,12 @@ def main():
                 start = time.time()
 
                 # Cek apakah hybrid model tersedia
-                if svd and embeddings_dict:
+                if svd is not None and embeddings is not None:
                     recommendations = get_hybrid_recommendations(
-                        input_movie_id=int(input_movie["movie_id"]),
-                        candidate_movies=df,
+                        user_id=1,              # ⚠️ SVD butuh user_id, bukan movie_id. Ganti dengan ID user asli/dummy
+                        movies_df=df,           # ⚠️ Bukan candidate_movies
                         svd_model=svd,
-                        embeddings_dict=embeddings_dict,
+                        embeddings=embeddings,  # ⚠️ Bukan embeddings_dict (sekarang sudah numpy array)
                         top_n=10
                     )
                     model_used = "hybrid (SVD + SBERT)"
