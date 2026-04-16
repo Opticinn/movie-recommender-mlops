@@ -54,14 +54,23 @@ def get_sbert_embeddings():
     return embeddings, movie_ids
 
 def predict_svd_light(model_data: dict, uid: int, iid: int) -> float:
-    mean = model_data['mean']
-    bu = model_data['bu'].get(uid, 0)
-    bi = model_data['bi'].get(iid, 0)
+    """Prediksi rating menggunakan model ringan dengan pengecekan kunci yang aman"""
     
-    pu = model_data['pu'].get(uid, np.zeros(model_data['factor_size']))
-    qi = model_data['qi'].get(iid, np.zeros(model_data['factor_size']))
+    # Coba cari kunci mean, mu, atau global_mean (tergantung hasil save pkl kamu)
+    mean = model_data.get('mean', model_data.get('mu', model_data.get('global_mean', 0)))
     
+    # Ambil bias user & item (default 0 jika tidak ada)
+    bu = model_data.get('bu', {}).get(uid, 0)
+    bi = model_data.get('bi', {}).get(iid, 0)
+    
+    # Ambil faktor latent (default array nol jika tidak ada)
+    factor_size = model_data.get('factor_size', 100)
+    pu = model_data.get('pu', {}).get(uid, np.zeros(factor_size))
+    qi = model_data.get('qi', {}).get(iid, np.zeros(factor_size))
+    
+    # Hitung dot product (pu * qi) + mean + bias
     est = mean + bu + bi + np.dot(pu, qi)
+    
     return float(np.clip(est, 0.5, 5.0))
 
 def get_hybrid_recommendations(

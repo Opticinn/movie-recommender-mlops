@@ -19,7 +19,6 @@ st.set_page_config(
 )
 
 @st.cache_resource  # cache model — tidak reload setiap interaksi
-@st.cache_resource
 def load_models():
     svd = get_svd_model()
     embeddings, movie_ids = get_sbert_embeddings() # Sesuai dengan model_loader baru
