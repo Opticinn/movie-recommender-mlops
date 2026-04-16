@@ -56,40 +56,46 @@ def get_sbert_embeddings():
 def predict_svd_light(model_data: dict, uid: int, iid: int) -> float:
     """Prediksi rating menggunakan model ringan (support Dict & Numpy Array)"""
     
-    # 1. Ambil mean
+    # 1. Ambil rata-rata global
     mean = model_data.get('mean', model_data.get('mu', model_data.get('global_mean', 0)))
     
-    # Fungsi pembantu untuk mengambil data dengan aman (anti-crash)
-    def safe_get(data, key, default):
+    # Fungsi pembantu untuk mengambil data (return None jika tidak ketemu)
+    def safe_get(data, key):
         if data is None:
-            return default
+            return None
         if isinstance(data, dict):
-            return data.get(key, default)
+            return data.get(key, None)
         if isinstance(data, (np.ndarray, list)):
             try:
-                # Jika key berupa int, coba jadikan index array
                 return data[int(key)]
             except (IndexError, ValueError, TypeError):
-                return default
-        return default
+                return None
+        return None
 
     # 2. Ekstrak struktur data
     bu_data = model_data.get('bu', {})
     bi_data = model_data.get('bi', {})
     pu_data = model_data.get('pu', {})
     qi_data = model_data.get('qi', {})
-    factor_size = model_data.get('factor_size', 100)
     
-    # 3. Ambil nilai spesifik untuk user & item (atau gunakan default)
-    bu = safe_get(bu_data, uid, 0.0)
-    bi = safe_get(bi_data, iid, 0.0)
-    pu = safe_get(pu_data, uid, np.zeros(factor_size))
-    qi = safe_get(qi_data, iid, np.zeros(factor_size))
+    # 3. Ambil bias (default 0.0 jika None)
+    bu = safe_get(bu_data, uid) or 0.0
+    bi = safe_get(bi_data, iid) or 0.0
     
-    # 4. Hitung estimasi (dot product (pu * qi) + mean + bias)
-    est = mean + bu + bi + np.dot(pu, qi)
+    # 4. Ambil vektor latent
+    pu = safe_get(pu_data, uid)
+    qi = safe_get(qi_data, iid)
     
-    # 5. Batasi nilai rating antara 0.5 sampai 5.0
+    # 5. Hitung dot product hanya jika keduanya ditemukan!
+    if pu is not None and qi is not None:
+        dot_product = np.dot(pu, qi)
+    else:
+        dot_product = 0.0
+    
+    # 6. Hitung estimasi rating
+    est = mean + bu + bi + dot_product
+    
+    # 7. Batasi nilai rating antara 0.5 sampai 5.0
     return float(np.clip(est, 0.5, 5.0))
 
 def get_hybrid_recommendations(
