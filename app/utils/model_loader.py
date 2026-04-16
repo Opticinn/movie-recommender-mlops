@@ -25,7 +25,7 @@ MODEL_DIR.mkdir(parents=True, exist_ok=True)
 # ── Helpers ──────────────────────────────────────────────────────────────────
 def save_model(obj, path: Path):
     with open(path, "wb") as f:
-        pickle.dump(obj, f)
+        pickle.dump(obj, f, protocol=4)
     print(f"💾 Saved: {path.name}")
 
 
@@ -43,7 +43,7 @@ def load_movielens():
 
 # ── SVD ──────────────────────────────────────────────────────────────────────
 def train_svd(ratings):
-    svd = SVD(n_factors=100, n_epochs=20, lr_all=0.005, reg_all=0.02)
+    svd = SVD(n_factors=50, n_epochs=20, lr_all=0.005, reg_all=0.02)
     trainset = ratings.build_full_trainset()
     svd.fit(trainset)
     return svd
