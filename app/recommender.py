@@ -163,12 +163,12 @@ def main():
                 start = time.time()
 
                 # Cek apakah hybrid model tersedia
-                if svd is not None and embeddings is not None:
+                if svd and embeddings_dict:
                     recommendations = get_hybrid_recommendations(
-                        user_id=1,              # ⚠️ SVD butuh user_id, bukan movie_id. Ganti dengan ID user asli/dummy
-                        movies_df=df,           # ⚠️ Bukan candidate_movies
+                        input_movie_id=int(input_movie["movie_id"]),
+                        candidate_movies=df,
                         svd_model=svd,
-                        embeddings=embeddings,  # ⚠️ Bukan embeddings_dict (sekarang sudah numpy array)
+                        embeddings_dict=embeddings,
                         top_n=10
                     )
                     model_used = "hybrid (SVD + SBERT)"
