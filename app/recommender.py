@@ -19,15 +19,11 @@ st.set_page_config(
 )
 
 @st.cache_resource  # cache model — tidak reload setiap interaksi
+@st.cache_resource
 def load_models():
-    """
-    Load SVD dan SBERT model.
-    Pakai cache_resource karena model adalah object besar.
-    """
     svd = get_svd_model()
-    # movie_ids = []  # embeddings sudah ada di disk, tidak perlu movie_ids
-    embeddings = get_sbert_embeddings()
-    return svd, embeddings
+    embeddings, movie_ids = get_sbert_embeddings() # Sesuai dengan model_loader baru
+    return svd, embeddings, movie_ids # Return 3 nilai!
 
 # ── 2. Load movie data from Supabase ──────────────────────
 @st.cache_data(ttl=3600)
@@ -171,7 +167,7 @@ def main():
                         svd_model=svd,
                         embeddings_dict=embeddings_dict,
                         top_n=10
-                    )
+                )
                     model_used = "hybrid (SVD + SBERT)"
                 else:
                     # Fallback ke content-based kalau model tidak tersedia
