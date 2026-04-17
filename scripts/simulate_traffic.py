@@ -67,6 +67,7 @@ def run_simulation():
                 input_movie_title=random_movie["title"],
                 input_movie_genres=random_movie["genre_names"],
                 recommended_movies=recommendations["title"].tolist() if not recommendations.empty else [],
+                recommended_genres=recommendations["genre_names"].tolist() if not recommendations.empty else [],
                 latency_ms=latency,
                 model_version="v2.0-hybrid"
             )
