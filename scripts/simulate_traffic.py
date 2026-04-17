@@ -1,7 +1,6 @@
 import os
 import sys
 import time
-import random
 import pandas as pd
 
 # Menambahkan root directory ke sys.path agar bisa import dari folder 'app'
@@ -9,9 +8,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.utils.db_client import get_client, insert_prediction_log
 
-# Sesuaikan import ini dengan nama fungsi yang ada di model_loader kamu
-# Asumsi: kamu punya fungsi get_hybrid_recommendations dan fungsi load model
-from app.utils.model_loader import get_hybrid_recommendations
+# --- IMPORT DISESUAIKAN DENGAN MODEL_LOADER KAMU ---
+from app.utils.model_loader import get_svd_model, get_sbert_embeddings, get_hybrid_recommendations
 
 def run_simulation():
     print("🤖 Memulai Bot Simulasi Traffic...")
@@ -26,6 +24,21 @@ def run_simulation():
         print("❌ Data film kosong. Batalkan simulasi.")
         return
 
+    # --- PERBAIKAN: Load Model Menggunakan Fungsi Asli Kamu ---
+    print("🧠 Memuat model Hybrid (SVD + SBERT)...")
+    try:
+        # Load SVD
+        svd_model = get_svd_model()
+        
+        # Load SBERT dan ubah menjadi dictionary
+        embeddings, movie_ids = get_sbert_embeddings()
+        embeddings_dict = dict(zip(movie_ids.tolist(), embeddings))
+        
+    except Exception as e:
+        print(f"❌ Gagal memuat model. Simulasi dibatalkan. Error: {e}")
+        return
+    # ------------------------------------------------------------
+
     # 2. Lakukan 20 pencarian acak per sesi
     TOTAL_REQUESTS = 20
     
@@ -35,11 +48,12 @@ def run_simulation():
             random_movie = movies_df.sample(1).iloc[0]
             start_time = time.time()
 
-            # Panggil fungsi rekomendasi (Sistem akan otomatis mendownload/meload model jika belum ada)
-            # Pastikan parameter ini sesuai dengan fungsi get_hybrid_recommendations milikmu
+            # Panggil fungsi rekomendasi dengan parameter lengkap
             recommendations = get_hybrid_recommendations(
                 input_movie_id=int(random_movie["movie_id"]),
-                candidate_movies=movies_df
+                candidate_movies=movies_df,
+                svd_model=svd_model,              
+                embeddings_dict=embeddings_dict   
             )
 
             # Hitung Latency
