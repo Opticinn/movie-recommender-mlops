@@ -62,7 +62,7 @@ def run_simulation():
             # Insert ke log Supabase (menggunakan model_version V2)
             insert_prediction_log(
                 session_id="bot_github_action",
-                user_type="bot",
+                user_type="dummy",
                 input_movie_id=int(random_movie["movie_id"]),
                 input_movie_title=random_movie["title"],
                 input_movie_genres=random_movie["genre_names"],
