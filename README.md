@@ -30,7 +30,9 @@ Moving beyond basic metadata, this system actually understands context.
 
 ### 🚨 2. The Nervous System: Proactive Monitoring
 <img width="1919" height="1075" alt="image" src="https://github.com/user-attachments/assets/a9a3baba-08a6-4334-b99d-560525a540e6" />
+
 I don't believe in staring at dashboards waiting for things to break. 
+
 * **Real-time Drift Detection:** Continuously monitors for shifts in genre distributions and rating baselines.
 * **Latency Tracking:** Ensures the Hybrid Engine serves predictions in under `100ms`.
 * **Telegram Alerts:** If the system detects an anomaly (e.g., latency spikes or high data drift), it instantly fires a customized alert straight to my phone.
