@@ -55,6 +55,19 @@ Enterprise-grade infrastructure doesn't have to break the bank. This entire pipe
 * **Alerting Proof:**
 <img width="480" height="1068" alt="image" src="https://github.com/user-attachments/assets/64458efd-1946-46f0-8955-ecbb7625edbe" />
 
+---
+
+## 💡 What I Learned
+
+Building this project was a deep dive into the reality of production-grade Machine Learning. Here are my key takeaways:
+
+* **MLOps is the Backbone:** I learned that developing a high-performing model is only a small part of the journey. Engineering the surrounding infrastructure—monitoring, automation, and reliability—is what actually makes a project "production-ready."
+* **Proactive over Reactive:** Relying on manual dashboard checks is a recipe for failure. I learned how to implement automated alerting systems (via Telegram) to catch issues like latency spikes and data drift before they affect the end-user experience.
+* **The Reality of Data Drift:** Models are not "set and forget." I gained hands-on experience in detecting how real-world data distributions can shift over time and why constant validation against a baseline is crucial for maintaining recommendation quality.
+* **Automation as a Force Multiplier:** By leveraging GitHub Actions for more than just simple testing—such as running daily traffic simulations—I learned how to maintain a dynamic system with zero manual oversight.
+* **Architectural Resourcefulness:** I discovered the power of integrating diverse platforms (Supabase, Hugging Face, Streamlit) to build a sophisticated, enterprise-grade pipeline without requiring a massive budget or complex server management.
+
+---
 
 ## 🛠️ Project Architecture
 
